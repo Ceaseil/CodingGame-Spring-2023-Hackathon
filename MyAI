@@ -1,0 +1,177 @@
+import sys
+import math
+
+# set up
+# ex -> {0: Cell(cell_type: 1, resources: 20, neighbors: [4, 3, 6, -1, 7,-1], my_ants: 0, opp_ants: 0)}
+list_of_Cells = {}
+
+class Cell:
+    def __init__(self, cell_type, resources, neighbors, my_ants, opp_ants):
+        self.cell_type = cell_type
+        self.resources = resources
+        self.neighbors = neighbors
+        self.my_ants = my_ants
+        self.opp_ants = opp_ants
+
+number_of_cells = int(input())
+# Setting up each cell as a class and getting their intial information
+# Then storing each cell in a dictionary with their index as the key
+for i in range(number_of_cells):
+    # _type: 0 for empty, 1 for eggs, 2 for crystal
+    # initial_resources: the initial amount of eggs/crystals on this cell
+    # neighbors: the list of index of the neighbouring cell for each direction
+    attribute = [int(j) for j in input().split()]
+    cell_type = attribute[0]
+    initial_resources = attribute[1]
+    neighbors = attribute[2:]
+    a_cell = Cell(
+        cell_type = cell_type,
+        resources = initial_resources,
+        neighbors = neighbors,
+        my_ants = 0,
+        opp_ants = 0
+    )
+    list_of_Cells[i] = a_cell
+
+# Identifying the location of my and the opponent's bases
+number_of_bases = int(input())
+my_bases = []
+opp_bases = []
+for i in input().split():
+    my_base_index = int(i)
+    my_bases.append(my_base_index)
+for i in input().split():
+    opp_base_index = int(i)
+    opp_bases.append(opp_base_index)
+
+def sort_by_resources(local_list):
+    sorted = True
+    for i in range(len(local_list)-1):
+        if list_of_Cells[local_list[i]].resources > list_of_Cells[local_list[i+1]].resources:
+            a = local_list[i]
+            b = local_list[i+1]
+            local_list[i] = b
+            local_list[i+1] = a
+        else:
+            pass
+    for i in range(len(local_list)-1):
+        if list_of_Cells[local_list[i]].resources > list_of_Cells[local_list[i+1]].resources:
+            sorted = False
+        else:
+            pass
+    if sorted == False:
+        sort_by_resources(local_list)
+    return local_list
+            
+
+# Location of resources
+nest_loc = []
+crystal_loc = []
+for i in list_of_Cells:
+        if list_of_Cells[i].resources > 0:
+            if list_of_Cells[i].cell_type == 1:
+                nest_loc.append(i)
+            else:
+                crystal_loc.append(i)
+
+# The location of resources separated by ring distance
+rings_nest = []
+rings_crystal = []
+
+# Setting up the rings
+run_counter = 0
+number_of_crystals = 0
+number_of_nests = 0
+# Function to create the rings
+def closest_resources(cell_indexes, cell_type, ignore_index):
+    global run_counter
+    global number_of_nests
+    global number_of_crystals
+    neigh_loc = []
+    nests = []
+    crystals = []
+    for i in cell_indexes:
+        # Checking the neighbors index of the cell[i]
+        for neighbor_index in list_of_Cells[i].neighbors:
+            if neighbor_index >= 0 and neighbor_index not in neigh_loc and neighbor_index not in ignore_index:
+                # So that the neighbors index of the cell[i] do not get checked again
+                neigh_loc.append(neighbor_index)
+                # Location of nests or crystals
+                if cell_type == "nest":
+                    if neighbor_index in nest_loc:
+                        nests.append(neighbor_index)
+                        number_of_nests += 1
+                else:
+                    if neighbor_index in crystal_loc:
+                        crystals.append(neighbor_index)
+                        number_of_crystals += 1
+    
+    if cell_type != "nest":
+        rings_crystal.append(crystals)
+    else:
+        rings_nest.append(nests)
+    run_counter += 1
+    if cell_type == "nest":
+        if number_of_nests < len(nest_loc):
+            closest_resources(neigh_loc, cell_type, cell_indexes + neigh_loc)
+    else:
+        if number_of_crystals < len(crystal_loc):
+            closest_resources(neigh_loc, cell_type, cell_indexes + neigh_loc)
+
+closest_resources(my_bases, "nest", [-1])
+neigh_loc = []
+run_counter = 0
+closest_resources(my_bases, "crystal", [-1])
+
+# The order to gather resources
+command_order = []
+for i in rings_nest:
+    if len(i) == 0:
+        pass
+    else:
+        for j in i:
+            command_order.append(j)
+if len(command_order) > 2:
+    command_order = command_order[:2]
+               
+for i in rings_crystal:
+    if len(i) == 0:
+        pass
+    else:
+        sort_by_resources(i) # not sure if I still need this
+        for j in i:
+            command_order.append(j)
+
+#print(f"MESSAGE {command_order}")
+# Creating the print statement
+orders = []
+for i in command_order:
+    orders.append(f"LINE {my_bases[0]} {i} ")
+
+# game loop
+while True:
+    for i in range(number_of_cells):
+        # resources: the current amount of eggs/crystals on this cell
+        # my_ants: the amount of your ants on this cell
+        # opp_ants: the amount of opponent ants on this cell
+        resources, my_ants, opp_ants = [int(j) for j in input().split()]
+        list_of_Cells[i].resources = resources
+        # Removes any cells that ran out of resources from the command order
+        if i in command_order and list_of_Cells[i].resources == 0:
+            x = command_order.index(i)
+            command_order.pop(x)
+            orders.pop(x)
+        list_of_Cells[i].my_ants = my_ants
+        list_of_Cells[i].opp_ants = opp_ants
+
+    if len(orders) < 8:
+        orders.append("MESSAGE hi")
+        orders.append("MESSAGE hi")
+        orders.append("MESSAGE hi")
+        orders.append("MESSAGE hi")
+    if len(rings_nest[0]) != 0 and rings_nest[0][0] in command_order:
+        print(orders[0] + "1")
+    else:
+        print(orders[0] + "1;" + orders[1] + "1;" + orders[2] + "1;" + orders[3] + "1;" + orders[4] + "1;" + orders[5] + "1;", orders[6] + "1;", orders[7] + "1;")
+
+    # WAIT | LINE <{sourceIdx}> <{targetIdx}> <strength> | BEACON <{cellIdx}> <strength> | MESSAGE <text>
